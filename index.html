@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <title>五子棋 · 对战AI</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- 首页 -->
+    <section id="view-home" class="view active">
+      <div class="home-inner">
+        <div class="logo"><span class="logo-stone black"></span><span class="logo-stone white"></span></div>
+        <h1 class="title">五子棋</h1>
+        <button class="btn primary" id="btn-start">开始游戏（AI对战）</button>
+        <button class="btn" id="btn-continue">继续游戏</button>
+        <button class="btn blue" id="btn-settings">设置</button>
+
+        <div class="home-card">
+          <div class="lb-stats">
+            <div class="lb-item"><span class="lb-num" id="lb-wins100">0</span><span class="lb-label">执黑胜</span></div>
+            <div class="lb-item"><span class="lb-num" id="lb-fastest">0</span><span class="lb-label">执白胜</span></div>
+            <div class="lb-item"><span class="lb-num" id="lb-bestmoves">--</span><span class="lb-label">执白最少步</span></div>
+            <div class="lb-item"><span class="lb-num" id="lb-total">0/0</span><span class="lb-label">对局/胜</span></div>
+          </div>
+          <div class="lb-note">执黑/执白获胜计入排行榜</div>
+          <div class="lb-btns">
+            <button class="btn lb-btn" id="btn-top10">查看 TOP50</button>
+            <button class="btn lb-btn" id="btn-global-lb">全局排行榜</button>
+            <button class="btn lb-btn" id="btn-history">历史棋谱</button>
+          </div>
+        </div>
+        <button class="btn" id="btn-pvp">人工对战</button>
+      </div>
+    </section>
+
+    <!-- 对局 -->
+    <section id="view-game" class="view">
+      <header class="game-header">
+        <button class="icon-btn" id="btn-back" aria-label="返回首页">‹</button>
+        <div class="status" id="game-status">--</div>
+        <div class="header-actions">
+          <button class="text-btn" id="btn-undo" disabled>悔棋</button>
+          <button class="text-btn" id="btn-export">导出</button>
+          <button class="text-btn" id="btn-restart">重开</button>
+        </div>
+      </header>
+      <!-- 步数/用时/执子信息：放棋盘上方，避免被手机底部工具栏遮挡 -->
+      <footer class="game-footer" id="game-footer">
+        <span id="game-moves">步数 0</span>
+        <span class="foot-sep">·</span>
+        <span id="game-timer">用时 00:00</span>
+        <span class="foot-sep">·</span>
+        <span id="game-meta"></span>
+        <span class="foot-sep">·</span>
+        <button class="foot-btn" id="btn-help">帮助</button>
+        <span class="foot-sep">·</span>
+        <button class="foot-btn" id="btn-sound">声音:关</button>
+        <span class="foot-sep">·</span>
+        <button class="foot-btn" id="btn-import" hidden>导入残局</button>
+      </footer>
+
+      <!-- 对局结束：获胜结算条（放棋盘上方，避免被手机底部工具栏遮挡） -->
+      <div class="overlay" id="overlay" hidden>
+        <div class="overlay-bar">
+          <div class="overlay-info">
+            <div class="overlay-title" id="overlay-title"></div>
+            <div class="overlay-sub" id="overlay-sub"></div>
+          </div>
+          <div class="overlay-actions">
+            <button class="btn primary" id="btn-again">再来一局</button>
+            <button class="btn ghost" id="btn-save-game">保存棋局</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="board-wrap">
+        <canvas id="board"></canvas>
+      </div>
+    </section>
+
+    <!-- TOP50 战绩弹窗（一级：黑棋/白棋；二级：最快时间/最少手数） -->
+    <div class="modal" id="top10-modal" hidden>
+      <div class="modal-card global-card">
+        <div class="global-head">
+          <h2 class="modal-title">TOP50 战绩</h2>
+          <button class="icon-close" id="btn-close-top10" aria-label="关闭">×</button>
+        </div>
+        <div class="tabs" id="top-color-tabs">
+          <button class="tab active" data-color="black">黑棋</button>
+          <button class="tab" data-color="white">白棋</button>
+        </div>
+        <div class="tabs" id="top-metric-tabs">
+          <button class="tab active" data-metric="time">最快时间</button>
+          <button class="tab" data-metric="moves">最少手数</button>
+        </div>
+        <div class="lb-list" id="top-list"></div>
+      </div>
+    </div>
+
+    <!-- 全局排行榜弹窗 -->
+    <div class="modal" id="global-modal" hidden>
+      <div class="modal-card global-card">
+        <div class="global-head">
+          <h2 class="modal-title">全局排行榜</h2>
+          <button class="icon-close" id="btn-close-global" aria-label="关闭">×</button>
+        </div>
+        <div class="tabs" id="lb-period-tabs" hidden>
+          <button class="tab active" data-period="day">日榜</button>
+          <button class="tab" data-period="week">周榜</button>
+          <button class="tab" data-period="month">月榜</button>
+          <button class="tab" data-period="all">总榜</button>
+        </div>
+        <div class="tabs" id="lb-tabs" hidden>
+          <button class="tab active" data-board="1">执黑胜</button>
+          <button class="tab" data-board="2">执白胜</button>
+          <button class="tab" data-board="3">执白步数</button>
+        </div>
+        <div class="lb-note">执黑/执白获胜计入；悔棋/使用帮助/人工对战不计入</div>
+        <div class="lb-body" id="lb-body">
+          <div class="lb-scroll" id="lb-scroll"><div class="lb-tip">加载中…</div></div>
+          <div class="lb-mine" id="lb-mine"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 设置弹窗 -->
+    <div class="modal" id="settings-modal" hidden>
+      <div class="modal-card settings-card">
+        <h2 class="modal-title">设置</h2>
+
+        <div class="setting-row">
+          <div class="setting-label">先手</div>
+          <div class="radio-group" id="first-group">
+            <label class="radio-item"><input type="radio" name="first" value="black"><span>执黑先手</span></label>
+            <label class="radio-item"><input type="radio" name="first" value="white"><span>执白后手</span></label>
+            <label class="radio-item"><input type="radio" name="first" value="random"><span>随机</span></label>
+          </div>
+          <p class="diff-tip">仅执白获胜可计入排行榜</p>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-label">AI 深度搜索时间</div>
+          <div class="slider-row">
+            <input type="range" id="time-range" min="2" max="10" step="0.5" value="3.5">
+            <span class="agg-val" id="time-val">3.5s</span>
+          </div>
+          <p class="diff-tip">深度搜索时间越长 AI 越强（2-10s）</p>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-label">声音</div>
+          <div class="radio-group">
+            <label class="radio-item"><input type="radio" name="sound" value="on"><span>开</span></label>
+            <label class="radio-item"><input type="radio" name="sound" value="off"><span>关</span></label>
+          </div>
+          <p class="diff-tip">落子时播放提示音</p>
+        </div>
+
+        <div class="modal-btns">
+          <button class="btn primary" id="btn-save-settings">保存</button>
+          <button class="btn ghost" id="btn-cancel-settings">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 导出棋局成功提示 -->
+    <div class="modal" id="export-modal" hidden>
+      <div class="modal-card confirm-card">
+        <div class="confirm-title">提示</div>
+        <div class="confirm-text" id="export-tip">已成功导入剪切板</div>
+        <div class="modal-btns">
+          <button class="btn primary" id="btn-export-ok">确定</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 导入棋局（粘贴导出信息，恢复棋谱/残局） -->
+    <div class="modal" id="import-modal" hidden>
+      <div class="modal-card confirm-card">
+        <div class="confirm-title">导入棋局</div>
+        <div class="confirm-text">请粘贴导出的棋局信息（导出按钮复制的内容）</div>
+        <textarea id="import-text" rows="4" placeholder="在这里粘贴导出信息…"></textarea>
+        <p class="lb-note">支持含落子顺序的导出信息；旧版二维棋盘也可导入（仅恢复盘面）</p>
+        <div class="modal-btns">
+          <button class="btn ghost" id="btn-import-cancel">取消</button>
+          <button class="btn primary" id="btn-import-ok">确定</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 保存棋局成功提示 -->
+    <div class="modal" id="saveok-modal" hidden>
+      <div class="modal-card confirm-card">
+        <div class="confirm-title">提示</div>
+        <div class="confirm-text">棋局已保存到历史棋谱</div>
+        <div class="modal-btns">
+          <button class="btn primary" id="btn-saveok-ok">确定</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 历史棋谱列表 -->
+    <div class="modal" id="history-modal" hidden>
+      <div class="modal-card global-card">
+        <div class="global-head">
+          <h2 class="modal-title">历史棋谱</h2>
+          <button class="icon-close" id="btn-close-history" aria-label="关闭">×</button>
+        </div>
+        <div class="lb-sublabel">点击棋局可查看落子回放</div>
+        <div class="lb-btns">
+          <button class="btn lb-btn" id="btn-import-history">从导出信息导入</button>
+        </div>
+        <div class="lb-list" id="history-list"></div>
+      </div>
+    </div>
+
+    <!-- 棋谱回放（不可变页面） -->
+    <div class="modal" id="replay-modal" hidden>
+      <div class="modal-card replay-card">
+        <div class="global-head">
+          <h2 class="modal-title">棋谱回放</h2>
+          <button class="icon-close" id="btn-close-replay" aria-label="关闭">×</button>
+        </div>
+        <div class="lb-sublabel" id="replay-info"></div>
+        <div class="replay-wrap" id="replay-wrap">
+          <canvas id="replay-board"></canvas>
+        </div>
+        <div class="replay-actions">
+          <button class="btn primary" id="btn-save-replay-pic">保存图片</button>
+          <button class="btn ghost" id="btn-export-replay">导出棋谱</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 通用确认弹窗（B站内原生 confirm 会被拦截，改用自定义弹窗） -->
+    <div class="modal" id="confirm-modal" hidden>
+      <div class="modal-card confirm-card">
+        <div class="confirm-title">提示</div>
+        <div class="confirm-text" id="confirm-text"></div>
+        <div class="modal-btns">
+          <button class="btn ghost" id="btn-confirm-no">取消</button>
+          <button class="btn primary" id="btn-confirm-yes">确定</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="js/ai.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
